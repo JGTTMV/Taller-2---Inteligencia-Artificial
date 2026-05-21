@@ -22,21 +22,52 @@ SueChaseState::SueChaseState(std::shared_ptr<Character> _character) : FSMState(_
 Move SueChaseState::onUpdate(const GameState& game) 
 {
     const auto myPos = character->getPos();
-    auto moves = game.getMaze().getGhostLegalMoves(myPos, character->getDirection());
+
+    std::vector<Move> moves;
+
+    if(character->getDirection() == PASS)
+    {
+        moves = game.getMaze().getPossibleMoves(myPos);
+    }
+    else
+    {
+        moves = game.getMaze().getGhostLegalMoves(
+            myPos,
+            character->getDirection()
+        );
+    }
+
     if (moves.empty()) return PASS;
 
-    const auto pacmanCoord = game.getMaze().getNodePos(game.getPacmanPos());
+    const auto pacmanCoord =
+        game.getMaze().getNodePos(
+            game.getPacmanPos()
+        );
     
     float min = 1e10;
     int minI = 0;
-    for (unsigned int i = 0; i < moves.size(); i++) {
-        auto neighbor = game.getMaze().getNeighbour(myPos, moves[i]);
-        float dist = euclid2(game.getMaze().getNodePos(neighbor), pacmanCoord);
-        if (dist < min) {
+
+    for (unsigned int i = 0; i < moves.size(); i++) 
+    {
+        auto neighbor =
+            game.getMaze().getNeighbour(
+                myPos,
+                moves[i]
+            );
+
+        float dist =
+            euclid2(
+                game.getMaze().getNodePos(neighbor),
+                pacmanCoord
+            );
+
+        if (dist < min) 
+        {
             min = dist;
             minI = i;
         }
     }
+
     return moves[minI];
 }
 
@@ -46,21 +77,49 @@ SueScatterState::SueScatterState(std::shared_ptr<Character> _character) : FSMSta
 Move SueScatterState::onUpdate(const GameState& game) 
 {
     const auto myPos = character->getPos();
-    auto moves = game.getMaze().getGhostLegalMoves(myPos, character->getDirection());
+
+    std::vector<Move> moves;
+
+    if(character->getDirection() == PASS)
+    {
+        moves = game.getMaze().getPossibleMoves(myPos);
+    }
+    else
+    {
+        moves = game.getMaze().getGhostLegalMoves(
+            myPos,
+            character->getDirection()
+        );
+    }
+
     if (moves.empty()) return PASS;
 
-    std::pair<int, int> safetyCorner = {0, 31}; //Esquina inferior izquierda
+    std::pair<int, int> safetyCorner = {0, 31};
     
     float min = 1e10;
     int minI = 0;
-    for (unsigned int i = 0; i < moves.size(); i++) {
-        auto neighbor = game.getMaze().getNeighbour(myPos, moves[i]);
-        float dist = euclid2(game.getMaze().getNodePos(neighbor), safetyCorner);
-        if (dist < min) {
+
+    for (unsigned int i = 0; i < moves.size(); i++) 
+    {
+        auto neighbor =
+            game.getMaze().getNeighbour(
+                myPos,
+                moves[i]
+            );
+
+        float dist =
+            euclid2(
+                game.getMaze().getNodePos(neighbor),
+                safetyCorner
+            );
+
+        if (dist < min) 
+        {
             min = dist;
             minI = i;
         }
     }
+
     return moves[minI];
 }
 
@@ -70,10 +129,26 @@ SueFrightenedState::SueFrightenedState(std::shared_ptr<Character> _character) : 
 Move SueFrightenedState::onUpdate(const GameState& game) 
 {
     const auto myPos = character->getPos();
-    auto moves = game.getMaze().getGhostLegalMoves(myPos, character->getDirection());
-    if (!moves.empty()) {
+
+    std::vector<Move> moves;
+
+    if(character->getDirection() == PASS)
+    {
+        moves = game.getMaze().getPossibleMoves(myPos);
+    }
+    else
+    {
+        moves = game.getMaze().getGhostLegalMoves(
+            myPos,
+            character->getDirection()
+        );
+    }
+
+    if (!moves.empty()) 
+    {
         return moves[rand() % moves.size()];
     }
+
     return PASS;
 }
 

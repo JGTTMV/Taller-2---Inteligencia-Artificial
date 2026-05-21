@@ -1,329 +1,148 @@
 #include "InkyController.h"
-#include "Ghost.h"
-
-#include <cmath>
 
 InkyController::InkyController(
     std::shared_ptr<Character> character
-) : Controller(character) {
+) :
+Controller(character),
+root(std::make_shared<Selector>())
+{
+    auto filter = std::make_shared<Filter>();
+
+    filter->addCondition(
+        std::make_shared<Powerpill>()
+    );
+
+    filter->addAction(
+        std::make_shared<Frightened>()
+    );
+
+    root->addChild(filter);
+
+    auto filter2 = std::make_shared<Filter>();
+
+    filter2->addCondition(
+        std::make_shared<TimeOut>()
+    );
+
+    filter2->addAction(
+        std::make_shared<Scatter>()
+    );
+
+    root->addChild(filter2);
+
+    root->addChild(
+        std::make_shared<InkyChase>()
+    );
+}
+
+InkyController::~InkyController(){
 
 }
 
-InkyController::~InkyController() {
+Move InkyController::getMove(
+    const GameState& gs
+){
+    Info::getInfo()->in_character = character;
+    Info::getInfo()->in_gamestate = &gs;
 
+    root->tick();
+
+    return Info::getInfo()->out_move;
 }
 
-float InkyController::euclid2(
-    std::pair<int,int> a,
-    std::pair<int,int> b
-) const {
+Status InkyChase::update(){
 
-    int dx = a.first - b.first;
-    int dy = a.second - b.second;
-
-    return dx * dx + dy * dy;
-}
-
-Move InkyController::getClosestMove(
-    const GameState& game,
-    std::pair<int,int> target
-) const {
-
-    float minDist = 9999999;
-    Move bestMove = PASS;
-
-    std::vector<Move> moves;
-
-    if(character->getDirection() == PASS) {
-
-        moves =
-            game.getMaze().getPossibleMoves(
-                character->getPos()
-            );
-
-    } else {
-
-        moves =
-            game.getMaze().getGhostLegalMoves(
-                character->getPos(),
-                character->getDirection()
-            );
-    }
-
-    for(Move move : moves) {
-
-        if(move == PASS) {
-            continue;
-        }
-
-        int nextNode =
-            game.getMaze().getNeighbour(
-                character->getPos(),
-                move
-            );
-
-        if(nextNode < 0) {
-            continue;
-        }
-
-        auto nextPos =
-            game.getMaze().getNodePos(
-                nextNode
-            );
-
-        float dist =
-            euclid2(nextPos, target);
-
-        if(dist < minDist) {
-
-            minDist = dist;
-            bestMove = move;
-        }
-    }
-
-    return bestMove;
-}
-
-Move InkyController::getFarthestMove(
-    const GameState& game,
-    std::pair<int,int> target
-) const {
-
-    float maxDist = -1;
-    Move bestMove = PASS;
-
-    std::vector<Move> moves;
-
-    if(character->getDirection() == PASS) {
-
-        moves =
-            game.getMaze().getPossibleMoves(
-                character->getPos()
-            );
-
-    } else {
-
-        moves =
-            game.getMaze().getGhostLegalMoves(
-                character->getPos(),
-                character->getDirection()
-            );
-    }
-
-    for(Move move : moves) {
-
-        if(move == PASS) {
-            continue;
-        }
-
-        int nextNode =
-            game.getMaze().getNeighbour(
-                character->getPos(),
-                move
-            );
-
-        if(nextNode < 0) {
-            continue;
-        }
-
-        auto nextPos =
-            game.getMaze().getNodePos(
-                nextNode
-            );
-
-        float dist =
-            euclid2(nextPos, target);
-
-        if(dist > maxDist) {
-
-            maxDist = dist;
-            bestMove = move;
-        }
-    }
-
-    return bestMove;
-}
-
-std::pair<int,int>
-InkyController::getPredictedTarget(
-    const GameState& game
-) const {
+    auto character = Info::getInfo()->in_character;
+    auto gs = Info::getInfo()->in_gamestate;
 
     auto pacmanPos =
-        game.getMaze().getNodePos(
-            game.getPacmanPos()
+        gs->getMaze().getNodePos(
+            gs->getPacmanPos()
         );
 
-    auto blinkyPos =
-        game.getMaze().getNodePos(
-            game.getGhostsPos(0)
-        );
+    Move pacDir =
+        (Move) gs->getPacmanDir();
 
-    Move dir = static_cast<Move>(game.getPacmanDir());
+    std::pair<int,int> projected = pacmanPos;
 
-    int offsetX = 0;
-    int offsetY = 0;
-
-    switch(dir) {
+    switch(pacDir){
 
         case UP:
-            offsetY = -4;
+            projected.second -= 2;
             break;
 
         case DOWN:
-            offsetY = 4;
+            projected.second += 2;
             break;
 
         case LEFT:
-            offsetX = -4;
+            projected.first -= 2;
             break;
 
         case RIGHT:
-            offsetX = 4;
+            projected.first += 2;
             break;
 
         default:
             break;
     }
 
-    std::pair<int,int> predicted = {
-
-        pacmanPos.first + offsetX,
-        pacmanPos.second + offsetY
-    };
-
-    std::pair<int,int> finalTarget = {
-
-        predicted.first +
-        (predicted.first - blinkyPos.first),
-
-        predicted.second +
-        (predicted.second - blinkyPos.second)
-    };
-
-    return finalTarget;
-}
-
-float InkyController::evaluateEscape(
-    const GameState& game
-) const {
-
-    Ghost* ghost =
-        dynamic_cast<Ghost*>(character.get());
-
-    if(!ghost->isEdible()) {
-        return 0.0f;
-    }
-
-    auto ghostPos =
-        game.getMaze().getNodePos(
-            character->getPos()
+    auto blinkyPos =
+        gs->getMaze().getNodePos(
+            gs->getGhost(0)->getPos()
         );
 
-    auto pacmanPos =
-        game.getMaze().getNodePos(
-            game.getPacmanPos()
-        );
+    std::pair<int,int> target;
 
-    float dist =
-        euclid2(ghostPos, pacmanPos);
+    target.first = (projected.first + blinkyPos.first) / 2;
 
-    return 10000.0f / (dist + 1.0f);
-}
+    target.second = (projected.second + blinkyPos.second) / 2;
 
-float InkyController::evaluatePredictChase(
-    const GameState& game
-) const {
+    float min = 1000000000;
+    Move minMove = PASS;
 
-    auto ghostPos =
-        game.getMaze().getNodePos(
-            character->getPos()
-        );
+    std::vector<Move> moves;
 
-    auto target =
-        getPredictedTarget(game);
+    if(character->getDirection()==PASS){
 
-    float dist =
-        euclid2(ghostPos, target);
-
-    return 5000.0f / (dist + 1.0f);
-}
-
-float InkyController::evaluateScatter(
-    const GameState& game
-) const {
-
-    auto ghostPos =
-        game.getMaze().getNodePos(
-            character->getPos()
-        );
-
-    auto pacmanPos =
-        game.getMaze().getNodePos(
-            game.getPacmanPos()
-        );
-
-    float dist =
-        euclid2(ghostPos, pacmanPos);
-
-    return dist * 0.005f;
-}
-
-Move InkyController::getMove(
-    const GameState& game
-) {
-
-    float escapeUtility =
-        evaluateEscape(game);
-
-    float chaseUtility =
-        evaluatePredictChase(game);
-
-    float scatterUtility =
-        evaluateScatter(game);
-
-    if(
-        escapeUtility > chaseUtility &&
-        escapeUtility > scatterUtility
-    ) {
-
-        auto pacmanPos =
-            game.getMaze().getNodePos(
-                game.getPacmanPos()
+        moves =
+            gs->getMaze().getPossibleMoves(
+                character->getPos()
             );
 
-        return getFarthestMove(
-            game,
-            pacmanPos
-        );
+    } else {
+
+        moves =
+            gs->getMaze().getGhostLegalMoves(
+                character->getPos(),
+                character->getDirection()
+            );
     }
 
-    if(
-        chaseUtility > scatterUtility
-    ) {
+    for(auto move : moves){
 
-        auto target =
-            getPredictedTarget(game);
+        if(move == PASS){
+            continue;
+        }
 
-        return getClosestMove(
-            game,
-            target
+        float dist = euclid2(
+            target,
+            gs->getMaze().getNodePos(
+                gs->getMaze().getNeighbour(
+                    character->getPos(),
+                    move
+                )
+            )
         );
+
+        if(dist < min){
+
+            min = dist;
+            minMove = move;
+        }
     }
 
-	auto blinkyPos =
-    	game.getMaze().getNodePos(
-        	game.getGhostsPos(0)
-    	);
+    Info::getInfo()->out_move = minMove;
 
-	std::pair<int,int> scatterTarget = {
-
-    	blinkyPos.first + 6,
-    	blinkyPos.second - 6
-	};
-
-    return getClosestMove(
-        game,
-        scatterTarget
-    );
+    return BH_SUCCESS;
 }

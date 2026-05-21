@@ -18,7 +18,7 @@
 #include "BlinkyController.h"
 #include "InkyController.h"
 #include "PinkyController.h"
-#include "SueController.h"
+#include "SueFSMController.h"
 #include "PacmanController.h"
 #include "DTGhostController.h"
 
@@ -45,7 +45,7 @@ gv(std::make_unique<GameView>(std::vector<std::string>{"images/maze-a.png","imag
 	ghostsControl.push_back(std::make_shared<FSMController>(ghosts[0]));
 	ghostsControl.push_back(std::make_shared<InkyController>(ghosts[1]));
 	ghostsControl.push_back(std::make_shared<PinkyController>(ghosts[2]));
-	ghostsControl.push_back(std::make_shared<RandomController>(ghosts[3]));
+	ghostsControl.push_back(std::make_shared<SueFSMController>(ghosts[3]));
 	//  ghostsControl.push_back(std::make_shared<BlinkyController>(ghosts[0]));
 	//  ghostsControl.push_back(std::make_shared<InkyController>(ghosts[1]));
 	//  ghostsControl.push_back(std::make_shared<PinkyController>(ghosts[2]));
