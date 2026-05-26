@@ -1,3 +1,4 @@
+//Josefina Valdebenito y Angel Leyton
 
 #include "Maze.h"
 #include "Game.h"
