@@ -1,16 +1,26 @@
 #include "MsPacmanController.h"
 #include "Ghost.h"
 
+#include <iostream>
 #include <cmath>
 
 MsPacmanController::MsPacmanController(
     std::shared_ptr<Character> character
-) : Controller(character) {
+) 
+:
+Controller(character)
+{
+    decisionCount[0] = 0;
+    decisionCount[1] = 0;
+    decisionCount[2] = 0;
 
+    statsPrinted = false;
 }
 
-MsPacmanController::~MsPacmanController() {
 
+MsPacmanController::~MsPacmanController()
+{
+    printStats();
 }
 
 Move MsPacmanController::getMove(
@@ -30,6 +40,8 @@ Move MsPacmanController::getMove(
         escapeUtility > pelletUtility &&
         escapeUtility > huntUtility
     ) {
+
+        decisionCount[DECISION_ESCAPE]++;
 
         auto pacmanPos =
             game.getMaze().getNodePos(
@@ -56,7 +68,7 @@ Move MsPacmanController::getMove(
                 );
 
             float dist =
-                euclid2(
+                getDistance(
                     pacmanPos,
                     ghostPos
                 );
@@ -78,6 +90,8 @@ Move MsPacmanController::getMove(
         huntUtility > pelletUtility
     ) {
 
+        decisionCount[DECISION_HUNT]++;
+
         auto target =
             getClosestEdibleGhost(game);
 
@@ -86,6 +100,8 @@ Move MsPacmanController::getMove(
             target
         );
     }
+
+    decisionCount[DECISION_PELLET]++;
 
     auto pellet =
         getClosestPellet(game);
@@ -96,7 +112,48 @@ Move MsPacmanController::getMove(
     );
 }
 
-float MsPacmanController::euclid2(
+void MsPacmanController::printStats()
+{
+    if(statsPrinted) {
+        return;
+    }
+
+    statsPrinted = true;
+
+    int total =
+        decisionCount[0] +
+        decisionCount[1] +
+        decisionCount[2];
+
+    if(total == 0) {
+        return;
+    }
+
+    float escapePercent =
+        (decisionCount[0] * 100.0f) / total;
+
+    float pelletPercent =
+        (decisionCount[1] * 100.0f) / total;
+
+    float huntPercent =
+        (decisionCount[2] * 100.0f) / total;
+
+    std::cout
+        << "\n PORCENTAJES \n"
+        << "Escape: "
+        << escapePercent
+        << "%\n"
+
+        << "Pellets: "
+        << pelletPercent
+        << "%\n"
+
+        << "Hunt: "
+        << huntPercent
+        << "%\n";
+}
+
+float MsPacmanController::getDistance(
     std::pair<int,int> a,
     std::pair<int,int> b
 ) const {
@@ -104,7 +161,7 @@ float MsPacmanController::euclid2(
     int dx = a.first - b.first;
     int dy = a.second - b.second;
 
-    return dx * dx + dy * dy;
+    return sqrt(dx * dx + dy * dy);
 }
 
 Move MsPacmanController::getClosestMove(
@@ -115,23 +172,10 @@ Move MsPacmanController::getClosestMove(
     float minDist = 9999999;
     Move bestMove = PASS;
 
-    std::vector<Move> moves;
-
-    if(character->getDirection() == PASS) {
-
-        moves =
-            game.getMaze().getPossibleMoves(
-                character->getPos()
-            );
-
-    } else {
-
-        moves =
-            game.getMaze().getGhostLegalMoves(
-                character->getPos(),
-                character->getDirection()
-            );
-    }
+    std::vector<Move> moves =
+        game.getMaze().getPossibleMoves(
+            character->getPos()
+        );
 
     for(Move move : moves) {
 
@@ -155,7 +199,7 @@ Move MsPacmanController::getClosestMove(
             );
 
         float dist =
-            euclid2(nextPos, target);
+            getDistance(nextPos, target);
 
         if(dist < minDist) {
 
@@ -175,23 +219,10 @@ Move MsPacmanController::getFarthestMove(
     float maxDist = -1;
     Move bestMove = PASS;
 
-    std::vector<Move> moves;
-
-    if(character->getDirection() == PASS) {
-
-        moves =
-            game.getMaze().getPossibleMoves(
-                character->getPos()
-            );
-
-    } else {
-
-        moves =
-            game.getMaze().getGhostLegalMoves(
-                character->getPos(),
-                character->getDirection()
-            );
-    }
+    std::vector<Move> moves =
+        game.getMaze().getPossibleMoves(
+            character->getPos()
+        );
 
     for(Move move : moves) {
 
@@ -215,7 +246,7 @@ Move MsPacmanController::getFarthestMove(
             );
 
         float dist =
-            euclid2(nextPos, target);
+            getDistance(nextPos, target);
 
         if(dist > maxDist) {
 
@@ -252,7 +283,7 @@ MsPacmanController::getClosestPellet(
                 game.getMaze().getNodePos(i);
 
             float dist =
-                euclid2(
+                getDistance(
                     pacmanPos,
                     pillPos
                 );
@@ -300,7 +331,7 @@ MsPacmanController::getClosestEdibleGhost(
             );
 
         float dist =
-            euclid2(
+            getDistance(
                 pacmanPos,
                 ghostPos
             );
@@ -349,7 +380,7 @@ float MsPacmanController::evaluateEscape(
             );
 
         float dist =
-            euclid2(
+            getDistance(
                 pacmanPos,
                 ghostPos
             );
@@ -365,7 +396,11 @@ float MsPacmanController::evaluateEscape(
         return 0.0f;
     }
 
-    return 7000.0f / (minDist + 1.0f);
+    if(minDist < 5.0f) {
+        return 3000.0f;
+    }
+
+    return 4000.0f / (minDist + 1.0f);
 }
 
 float MsPacmanController::evaluateEatPellet(
@@ -381,12 +416,12 @@ float MsPacmanController::evaluateEatPellet(
         getClosestPellet(game);
 
     float dist =
-        euclid2(
+        getDistance(
             pacmanPos,
             pelletPos
         );
 
-    return 5000.0f / (dist + 1.0f);
+    return 900.0f / (dist + 1.0f);
 }
 
 float MsPacmanController::evaluateHuntGhost(
@@ -419,7 +454,7 @@ float MsPacmanController::evaluateHuntGhost(
             );
 
         float dist =
-            euclid2(
+            getDistance(
                 pacmanPos,
                 ghostPos
             );
@@ -433,6 +468,5 @@ float MsPacmanController::evaluateHuntGhost(
         return 0.0f;
     }
 
-    return 9000.0f / (minDist + 1.0f);
+    return 7000.0f / (minDist + 1.0f);
 }
-

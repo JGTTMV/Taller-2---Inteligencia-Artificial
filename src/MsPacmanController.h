@@ -6,10 +6,23 @@ class MsPacmanController : public Controller {
 
 private:
 
-    float euclid2(
+    enum DecisionType
+    {
+        DECISION_ESCAPE,
+        DECISION_PELLET,
+        DECISION_HUNT
+    };
+
+    int decisionCount[3];
+
+    bool statsPrinted;
+
+    float getDistance(
         std::pair<int,int> a,
         std::pair<int,int> b
     ) const;
+
+    void printStats();
 
     Move getClosestMove(
         const GameState& game,
@@ -40,6 +53,7 @@ private:
     float evaluateHuntGhost(
         const GameState& game
     ) const;
+
 
 public:
 

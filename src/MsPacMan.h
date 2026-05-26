@@ -13,6 +13,7 @@
 class MsPacMan: public Character {
 	int score;
 	int lives;
+
 public:
 	MsPacMan(int startNode);
 	virtual ~MsPacMan();
